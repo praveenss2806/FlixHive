@@ -1,5 +1,11 @@
 const globalObj = {
     currentPage: window.location.pathname,
+    search: {
+        type: '',
+        term: '',
+        page: 1,
+        totalPage: 1,
+    },
 };
 
 const getPopularMovies = async () => {
@@ -216,6 +222,76 @@ const getShowDetails = async () => {
     document.querySelector('#show-details').appendChild(div);
 };
 
+const search = async () => {
+    const queryString = window.location.search;
+    const urlParams = new URLSearchParams(queryString);
+
+    globalObj.search.term = urlParams.get('search-term');
+    globalObj.search.type = urlParams.get('type');
+
+    if (globalObj.search.term !== '' && globalObj.search.term !== null) {
+        const { results, page, total_pages } = await searchApiData();
+
+        if (results.length === 0) {
+            showAlert('No results found');
+        }
+
+        displaySearchResults(results);
+    } else {
+        showAlert('Please enter search term');
+    }
+};
+
+const displaySearchResults = (results) => {
+    results.forEach((result) => {
+        const div = document.createElement('div');
+        div.classList.add('card');
+        div.innerHTML = `
+            <a href="${globalObj.search.type}-details.html?id=${result.id}">
+                ${
+                    result.poster_path
+                        ? `<img
+                        src="https://image.tmdb.org/t/p/w500${
+                            result.poster_path
+                        }"
+                        class="card-img-top"
+                        alt="${
+                            globalObj.search.type === 'movie'
+                                ? result.title
+                                : result.name
+                        }"
+                    />`
+                        : `<img
+                        src="images/no-image.jpg"
+                        class="card-img-top"
+                        alt="${
+                            globalObj.search.type === 'movie'
+                                ? result.title
+                                : result.name
+                        }"
+                    />`
+                }     
+            </a>
+            <div class="card-body">
+                <h5 class="card-title">${
+                    globalObj.search.type === 'movie'
+                        ? result.title
+                        : result.name
+                }</h5>
+                <p class="card-text">
+                <small class="text-muted">Release: ${
+                    globalObj.search.type === 'movie'
+                        ? result.release_date
+                        : result.first_air_date
+                }</small>
+                </p>
+            </div>
+        `;
+
+        document.querySelector('#search-results').appendChild(div);
+    });
+};
+
 const showSlider = async () => {
     const { results } = await fetchApiData('movie/now_playing');
 
@@ -287,7 +363,23 @@ const fetchApiData = async (endpoint) => {
     return data;
 };
 
-//highlight active link
+const searchApiData = async () => {
+    const ApiKey = 'f9722bd6bf6f645f6ce0506a98ce6067';
+    const ApiUrl = 'https://api.themoviedb.org/3';
+
+    showSpinner();
+
+    const res = await fetch(
+        `${ApiUrl}/search/${globalObj.search.type}?api_key=${ApiKey}&query=${globalObj.search.term}`
+    );
+
+    const data = await res.json();
+
+    hideSpinner();
+
+    return data;
+};
+
 const hlActiveLink = () => {
     const navLinks = document.querySelectorAll('.nav-link');
 
@@ -296,6 +388,15 @@ const hlActiveLink = () => {
             link.classList.add('active');
         }
     });
+};
+
+const showAlert = (msg, className = 'error') => {
+    const alertEl = document.createElement('div');
+    alertEl.classList.add('alert', className);
+    alertEl.appendChild(document.createTextNode(msg));
+    document.querySelector('#alert').appendChild(alertEl);
+
+    setTimeout(() => alertEl.remove(), 3000);
 };
 
 const init = () => {
@@ -315,7 +416,7 @@ const init = () => {
             getShowDetails();
             break;
         case '/search.html':
-            console.log('search');
+            search();
             break;
     }
 
