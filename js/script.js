@@ -5,6 +5,7 @@ const globalObj = {
         term: '',
         page: 1,
         totalPage: 1,
+        totalResults: 1,
     },
 };
 
@@ -230,7 +231,12 @@ const search = async () => {
     globalObj.search.type = urlParams.get('type');
 
     if (globalObj.search.term !== '' && globalObj.search.term !== null) {
-        const { results, page, total_pages } = await searchApiData();
+        const { results, page, total_pages, total_results } =
+            await searchApiData();
+
+        globalObj.search.page = page;
+        globalObj.search.totalPage = total_pages;
+        globalObj.search.totalResults = total_results;
 
         if (results.length === 0) {
             showAlert('No results found');
@@ -243,6 +249,14 @@ const search = async () => {
 };
 
 const displaySearchResults = (results) => {
+    document.querySelector('#search-results').innerHTML = '';
+    document.querySelector('#search-results-heading').innerHTML = '';
+    document.querySelector('#pagination').innerHTML = '';
+
+    document.querySelector('#search-results-heading').innerHTML = `
+        <h2>${results.length} of ${globalObj.search.totalResults} movies</h2>
+    `;
+
     results.forEach((result) => {
         const div = document.createElement('div');
         div.classList.add('card');
@@ -289,6 +303,42 @@ const displaySearchResults = (results) => {
         `;
 
         document.querySelector('#search-results').appendChild(div);
+    });
+
+    displayPagination();
+};
+
+const displayPagination = () => {
+    const div = document.createElement('div');
+
+    div.classList.add('pagination');
+
+    div.innerHTML = `
+        <button class="btn btn-primary" id="prev">Prev</button>
+        <button class="btn btn-primary" id="next">Next</button>
+        <div class="page-counter">Page ${globalObj.search.page} of ${globalObj.search.totalPage}</div>
+    `;
+
+    document.querySelector('#pagination').appendChild(div);
+
+    if (globalObj.search.page === 1) {
+        document.querySelector('#prev').disabled = true;
+    }
+
+    if (globalObj.search.page === globalObj.search.totalPage) {
+        document.querySelector('#next').disabled = true;
+    }
+
+    document.querySelector('#next').addEventListener('click', async () => {
+        globalObj.search.page += 1;
+        const { results } = await searchApiData();
+        displaySearchResults(results);
+    });
+
+    document.querySelector('#prev').addEventListener('click', async () => {
+        globalObj.search.page -= 1;
+        const { results } = await searchApiData();
+        displaySearchResults(results);
     });
 };
 
@@ -370,7 +420,7 @@ const searchApiData = async () => {
     showSpinner();
 
     const res = await fetch(
-        `${ApiUrl}/search/${globalObj.search.type}?api_key=${ApiKey}&query=${globalObj.search.term}`
+        `${ApiUrl}/search/${globalObj.search.type}?api_key=${ApiKey}&query=${globalObj.search.term}&page=${globalObj.search.page}`
     );
 
     const data = await res.json();
